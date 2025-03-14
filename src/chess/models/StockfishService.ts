@@ -6,12 +6,19 @@ export class StockfishService {
   private isReady = false;
   private moveResolve: ((move: Move) => void) | null = null;
   private moveReject: ((error: Error) => void) | null = null;
+  private readyPromise: Promise<void> | null = null;
+  private readyResolve: (() => void) | null = null;
 
   constructor() {
     this.initializeStockfish();
   }
 
   private initializeStockfish(): void {
+    // Create a new ready promise
+    this.readyPromise = new Promise<void>((resolve) => {
+      this.readyResolve = resolve;
+    });
+
     try {
       // Check if SharedArrayBuffer is available
       const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
@@ -68,6 +75,12 @@ export class StockfishService {
       console.error('Failed to initialize Stockfish:', error);
       // Set isReady to false to ensure getBestMove throws an appropriate error
       this.isReady = false;
+
+      // Reject the ready promise if it exists
+      if (this.readyResolve) {
+        this.readyResolve = null;
+        this.readyPromise = Promise.reject(new Error('Failed to initialize Stockfish'));
+      }
     }
   }
 
@@ -77,11 +90,35 @@ export class StockfishService {
     }
   }
 
+  /**
+   * Waits for Stockfish to be ready
+   * @returns A promise that resolves when Stockfish is ready
+   */
+  public async waitForReady(): Promise<void> {
+    // If Stockfish is already ready, resolve immediately
+    if (this.isReady) {
+      return Promise.resolve();
+    }
+
+    // If Stockfish is not initialized, try to initialize it
+    if (!this.worker) {
+      this.initializeStockfish();
+    }
+
+    // Return the ready promise
+    return this.readyPromise || Promise.reject(new Error('Failed to initialize Stockfish'));
+  }
+
   private handleStockfishMessage(message: string): void {
     console.log('Stockfish:', message);
 
     if (message.includes('readyok')) {
       this.isReady = true;
+      // Resolve the ready promise
+      if (this.readyResolve) {
+        this.readyResolve();
+        this.readyResolve = null;
+      }
     }
 
     // Parse "bestmove" response
@@ -123,14 +160,17 @@ export class StockfishService {
   }
 
   public async getBestMove(board: Board, currentPlayer: PieceColor = PieceColor.WHITE, depth: number = 10): Promise<Move> {
-    if (!this.worker || !this.isReady) {
-      // If Stockfish is not ready, try to initialize it again
-      this.initializeStockfish();
+    try {
+      // Wait for Stockfish to be ready
+      await this.waitForReady();
 
-      // If it's still not ready, throw an error
-      if (!this.worker || !this.isReady) {
-        throw new Error('Stockfish is not ready');
+      // If we got here, Stockfish is ready
+      if (!this.worker) {
+        throw new Error('Stockfish worker is not initialized');
       }
+    } catch (error) {
+      console.error('Failed to wait for Stockfish to be ready:', error);
+      throw new Error('Stockfish is not ready');
     }
 
     return new Promise<Move>((resolve, reject) => {
@@ -261,5 +301,10 @@ export class StockfishService {
       this.worker.terminate();
       this.worker = null;
     }
+    this.isReady = false;
+    this.readyResolve = null;
+    this.readyPromise = null;
+    this.moveResolve = null;
+    this.moveReject = null;
   }
 }
