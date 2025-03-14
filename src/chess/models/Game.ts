@@ -1,6 +1,6 @@
 import { Board } from './Board';
 import { MoveValidator } from './MoveValidator';
-import { Piece, PieceColor, Position, Move, GameStatus } from './types';
+import { PieceColor, Position, Move, GameStatus } from './types';
 import { StockfishService } from './StockfishService';
 
 export enum GameMode {
