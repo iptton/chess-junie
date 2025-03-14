@@ -1,0 +1,56 @@
+# SharedArrayBuffer Fix for Stockfish.js
+
+## Issue
+The application was encountering the following error:
+```
+stockfish.js:39 Uncaught ReferenceError: SharedArrayBuffer is not defined
+    at stockfish.js:39:171
+    at stockfish.js:324:13
+    at stockfish.js:360:6
+```
+
+This error occurs because the Stockfish chess engine uses SharedArrayBuffer for better performance, but this feature requires specific HTTP headers for security reasons.
+
+## Solution
+
+### 1. Added Vite Configuration
+Created a `vite.config.js` file to add the required HTTP headers for SharedArrayBuffer support:
+```javascript
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
+});
+```
+
+These headers are required for SharedArrayBuffer to work in modern browsers due to security concerns related to Spectre vulnerabilities.
+
+### 2. Enhanced StockfishService
+Updated the `StockfishService.ts` file to:
+- Check if SharedArrayBuffer is available in the current environment
+- Provide informative warning messages when it's not available
+- Implement a robust fallback mechanism that tries different initialization approaches:
+  - If SharedArrayBuffer is available, use the full-featured version
+  - If not, use a WASM version that doesn't require SharedArrayBuffer
+  - Add multiple fallback options to ensure the chess engine works in various environments
+
+## How to Test
+1. Run the development server with `npm run dev`
+2. The application should now load without the SharedArrayBuffer error
+3. The chess AI functionality should work correctly
+
+## Notes
+- The headers are applied in development mode through the Vite configuration.
+- For production on Cloudflare Pages, a `_headers` file has been added to the `public` directory with the following content:
+  ```
+  /*
+    Cross-Origin-Opener-Policy: same-origin
+    Cross-Origin-Embedder-Policy: require-corp
+  ```
+  This ensures that Cloudflare Pages serves the required headers for SharedArrayBuffer to work.
+- If you're deploying to a platform that doesn't allow setting these headers, the application will still work thanks to the fallback mechanism, but the chess AI might be slightly less performant.

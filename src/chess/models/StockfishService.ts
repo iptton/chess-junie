@@ -13,20 +13,46 @@ export class StockfishService {
 
   private initializeStockfish(): void {
     try {
+      // Check if SharedArrayBuffer is available
+      const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+
+      if (!hasSharedArrayBuffer) {
+        console.warn(
+          'SharedArrayBuffer is not available. This may affect Stockfish performance. ' +
+          'To enable SharedArrayBuffer, the server must send the following headers: ' +
+          'Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Embedder-Policy: require-corp'
+        );
+      }
+
       // Try different approaches to initialize Stockfish
       try {
-        // First try: Use the stockfish.js from the correct path with classic type
-        // This is the most compatible approach but might not use SharedArrayBuffer
-        const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
-        this.worker = new Worker(workerUrl, { type: 'classic' });
+        if (hasSharedArrayBuffer) {
+          // If SharedArrayBuffer is available, try to use the full-featured version
+          try {
+            // First try: Use the stockfish.js from the correct path with classic type
+            const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
+            this.worker = new Worker(workerUrl, { type: 'classic' });
+          } catch (e) {
+            if (e.toString().includes('SharedArrayBuffer')) {
+              throw e; // Re-throw to fall back to non-SharedArrayBuffer version
+            }
+            console.warn('Failed to initialize Stockfish with direct path, trying alternative:', e);
+            // Second try: Use the original approach with classic type
+            this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
+          }
+        } else {
+          // If SharedArrayBuffer is not available, use WASM version that doesn't require it
+          console.warn('Using WASM version of Stockfish that does not require SharedArrayBuffer');
+          this.worker = new Worker(new URL('stockfish', import.meta.url), { type: 'module' });
+        }
       } catch (e) {
-        console.warn('Failed to initialize Stockfish with direct path, trying alternative:', e);
+        console.warn('Failed to initialize Stockfish with preferred method, trying fallback:', e);
         try {
-          // Second try: Use the stockfish package entry point
+          // Final fallback: Try the module version which should work in most environments
           this.worker = new Worker(new URL('stockfish', import.meta.url), { type: 'module' });
         } catch (e2) {
-          // Third try: Use the original approach with classic type
-          console.warn('Failed to initialize Stockfish with module type, falling back to original approach:', e2);
+          console.warn('Failed to initialize Stockfish with module type, trying last resort:', e2);
+          // Last resort: Use the original approach with classic type
           this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
         }
       }
