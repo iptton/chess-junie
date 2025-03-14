@@ -1,6 +1,12 @@
 import { Board } from './Board';
 import { MoveValidator } from './MoveValidator';
 import { Piece, PieceColor, Position, Move, GameStatus } from './types';
+import { StockfishService } from './StockfishService';
+
+export enum GameMode {
+  HUMAN_VS_HUMAN = 'human_vs_human',
+  HUMAN_VS_AI = 'human_vs_ai'
+}
 
 export class Game {
   private board: Board;
@@ -8,13 +14,28 @@ export class Game {
   private currentPlayer: PieceColor;
   private moveHistory: Move[];
   private status: GameStatus;
+  private gameMode: GameMode;
+  private aiColor: PieceColor;
+  private stockfishService: StockfishService | null = null;
+  private aiThinking: boolean = false;
 
-  constructor() {
+  constructor(gameMode: GameMode = GameMode.HUMAN_VS_HUMAN, aiColor: PieceColor = PieceColor.BLACK) {
     this.board = new Board();
     this.moveValidator = new MoveValidator(this.board);
     this.currentPlayer = PieceColor.WHITE; // White starts
     this.moveHistory = [];
     this.status = GameStatus.ACTIVE;
+    this.gameMode = gameMode;
+    this.aiColor = aiColor;
+
+    if (gameMode === GameMode.HUMAN_VS_AI) {
+      this.stockfishService = new StockfishService();
+
+      // If AI plays as white, make the first move
+      if (this.aiColor === PieceColor.WHITE) {
+        this.makeAIMove();
+      }
+    }
   }
 
   public getBoard(): Board {
@@ -59,7 +80,75 @@ export class Game {
     // Update game status
     this.updateGameStatus();
 
+    // If it's AI's turn and the game is still active, make AI move
+    if (this.gameMode === GameMode.HUMAN_VS_AI && 
+        this.currentPlayer === this.aiColor && 
+        (this.status === GameStatus.ACTIVE || this.status === GameStatus.CHECK)) {
+      this.makeAIMove();
+    }
+
     return true;
+  }
+
+  public async makeAIMove(): Promise<boolean> {
+    if (!this.stockfishService || this.aiThinking || 
+        this.currentPlayer !== this.aiColor || 
+        (this.status !== GameStatus.ACTIVE && this.status !== GameStatus.CHECK)) {
+      return false;
+    }
+
+    this.aiThinking = true;
+
+    try {
+      // Get best move from Stockfish
+      const move = await this.stockfishService.getBestMove(this.board, this.currentPlayer);
+
+      // Make the move
+      const result = this.makeMove(move.from, move.to);
+
+      return result;
+    } catch (error) {
+      console.error('AI move error:', error);
+      return false;
+    } finally {
+      this.aiThinking = false;
+    }
+  }
+
+  public getGameMode(): GameMode {
+    return this.gameMode;
+  }
+
+  public getAIColor(): PieceColor {
+    return this.aiColor;
+  }
+
+  public setGameMode(mode: GameMode, aiColor: PieceColor = PieceColor.BLACK): void {
+    // If changing to AI mode
+    if (mode === GameMode.HUMAN_VS_AI && this.gameMode !== GameMode.HUMAN_VS_AI) {
+      this.stockfishService = new StockfishService();
+    } 
+    // If changing from AI mode
+    else if (mode !== GameMode.HUMAN_VS_AI && this.gameMode === GameMode.HUMAN_VS_AI) {
+      if (this.stockfishService) {
+        this.stockfishService.dispose();
+        this.stockfishService = null;
+      }
+    }
+
+    this.gameMode = mode;
+    this.aiColor = aiColor;
+
+    // If it's already AI's turn, make a move
+    if (mode === GameMode.HUMAN_VS_AI && 
+        this.currentPlayer === this.aiColor && 
+        (this.status === GameStatus.ACTIVE || this.status === GameStatus.CHECK)) {
+      this.makeAIMove();
+    }
+  }
+
+  public isAIThinking(): boolean {
+    return this.aiThinking;
   }
 
   private updateGameStatus(): void {
@@ -99,10 +188,26 @@ export class Game {
   }
 
   public resetGame(): void {
+    // Store current game mode and AI color
+    const currentGameMode = this.gameMode;
+    const currentAIColor = this.aiColor;
+
+    // Reset board and game state
     this.board.resetBoard();
     this.currentPlayer = PieceColor.WHITE;
     this.moveHistory = [];
     this.status = GameStatus.ACTIVE;
+
+    // Restore game mode and AI color
+    this.gameMode = currentGameMode;
+    this.aiColor = currentAIColor;
+
+    // If in AI mode and AI plays as white, make the first move
+    if (this.gameMode === GameMode.HUMAN_VS_AI && 
+        this.aiColor === PieceColor.WHITE && 
+        this.status === GameStatus.ACTIVE) {
+      this.makeAIMove();
+    }
   }
 
   public getPossibleMoves(position: Position): Position[] {
