@@ -13,8 +13,8 @@ export class StockfishService {
 
   private initializeStockfish(): void {
     try {
-      // Create a web worker for Stockfish
-      this.worker = new Worker(new URL('stockfish', import.meta.url));
+      // Create a web worker for Stockfish with classic type to avoid SharedArrayBuffer issues
+      this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
 
       // Set up message handler
       this.worker.onmessage = (e) => this.handleStockfishMessage(e.data);
