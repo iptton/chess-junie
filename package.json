@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit false --skipLibCheck true --noUnusedLocals false --noUnusedParameters false && vite build",
+    "build": "tsc --skipLibCheck true --noUnusedLocals false --noUnusedParameters false && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
