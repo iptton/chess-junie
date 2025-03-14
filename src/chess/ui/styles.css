@@ -1,0 +1,102 @@
+/* Chess Board Styles */
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: 480px;
+  height: 480px;
+  border: 2px solid #333;
+  margin: 20px auto;
+}
+
+.chess-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+  position: relative;
+  cursor: pointer;
+}
+
+.chess-cell.light {
+  background-color: #f0d9b5;
+}
+
+.chess-cell.dark {
+  background-color: #b58863;
+}
+
+.chess-cell.selected {
+  background-color: #aec6cf;
+}
+
+.chess-cell.possible-move::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Chess Piece Styles */
+.chess-piece {
+  font-size: 40px;
+  line-height: 60px;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+}
+
+.chess-piece.white {
+  color: #fff;
+  text-shadow: 0 0 2px #000;
+}
+
+.chess-piece.black {
+  color: #000;
+}
+
+/* Game Status Styles */
+.game-status {
+  text-align: center;
+  margin: 10px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* Reset Button Styles */
+button {
+  display: block;
+  margin: 10px auto;
+  padding: 8px 16px;
+  font-size: 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+/* Responsive Design */
+@media (max-width: 500px) {
+  .chess-board {
+    width: 320px;
+    height: 320px;
+  }
+  
+  .chess-cell {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .chess-piece {
+    font-size: 30px;
+    line-height: 40px;
+  }
+}
