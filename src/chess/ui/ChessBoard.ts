@@ -4,71 +4,81 @@ import { Piece, PieceColor, PieceType, Position, GameStatus } from '../models/ty
 export class ChessBoard {
   private game: Game;
   private boardElement: HTMLElement;
+  private statusElement: HTMLElement;
+  private resetButton: HTMLButtonElement;
   private selectedCell: Position | null = null;
   private possibleMoves: Position[] = [];
 
   constructor(containerId: string) {
     this.game = new Game();
-    
+
     const container = document.getElementById(containerId);
     if (!container) {
       throw new Error(`Container element with id "${containerId}" not found`);
     }
-    
+
     this.boardElement = document.createElement('div');
     this.boardElement.className = 'chess-board';
     container.appendChild(this.boardElement);
-    
+
+    // Create status element once
+    this.statusElement = document.createElement('div');
+    this.statusElement.className = 'game-status';
+    container.appendChild(this.statusElement);
+
+    // Create reset button once
+    this.resetButton = document.createElement('button');
+    this.resetButton.textContent = 'Reset Game';
+    this.resetButton.addEventListener('click', () => this.resetGame());
+    container.appendChild(this.resetButton);
+
     this.render();
   }
 
   private render(): void {
     this.boardElement.innerHTML = '';
-    
+
     // Create the board cells
     for (let y = 7; y >= 0; y--) {
       for (let x = 0; x < 8; x++) {
         const cell = document.createElement('div');
         cell.className = 'chess-cell';
         cell.classList.add((x + y) % 2 === 0 ? 'light' : 'dark');
-        
+
         // Add coordinates as data attributes
         cell.dataset.x = x.toString();
         cell.dataset.y = y.toString();
-        
+
         // Add click event listener
         cell.addEventListener('click', () => this.handleCellClick({ x, y }));
-        
+
         // Highlight selected cell
         if (this.selectedCell && this.selectedCell.x === x && this.selectedCell.y === y) {
           cell.classList.add('selected');
         }
-        
+
         // Highlight possible moves
         if (this.possibleMoves.some(pos => pos.x === x && pos.y === y)) {
           cell.classList.add('possible-move');
         }
-        
+
         // Add piece if present
         const piece = this.game.getBoard().getPieceAt({ x, y });
         if (piece) {
           const pieceElement = this.createPieceElement(piece);
           cell.appendChild(pieceElement);
         }
-        
+
         this.boardElement.appendChild(cell);
       }
     }
-    
-    // Add status display
-    const status = document.createElement('div');
-    status.className = 'game-status';
-    
+
+    // Update status display
     const currentPlayer = this.game.getCurrentPlayer() === PieceColor.WHITE ? 'White' : 'Black';
     const gameStatus = this.game.getStatus();
-    
+
     let statusText = `Current player: ${currentPlayer}`;
-    
+
     if (gameStatus === GameStatus.CHECK) {
       statusText += ' (Check)';
     } else if (gameStatus === GameStatus.CHECKMATE) {
@@ -78,25 +88,18 @@ export class ChessBoard {
     } else if (gameStatus === GameStatus.DRAW) {
       statusText = 'Game over: Draw!';
     }
-    
-    status.textContent = statusText;
-    this.boardElement.parentElement?.appendChild(status);
-    
-    // Add reset button
-    const resetButton = document.createElement('button');
-    resetButton.textContent = 'Reset Game';
-    resetButton.addEventListener('click', () => this.resetGame());
-    this.boardElement.parentElement?.appendChild(resetButton);
+
+    this.statusElement.textContent = statusText;
   }
 
   private createPieceElement(piece: Piece): HTMLElement {
     const pieceElement = document.createElement('div');
     pieceElement.className = 'chess-piece';
     pieceElement.classList.add(piece.color.toLowerCase());
-    
+
     // Add piece type as class
     pieceElement.classList.add(piece.type.toLowerCase());
-    
+
     // Use Unicode chess symbols
     let symbol = '';
     switch (piece.type) {
@@ -119,7 +122,7 @@ export class ChessBoard {
         symbol = piece.color === PieceColor.WHITE ? '♙' : '♟';
         break;
     }
-    
+
     pieceElement.textContent = symbol;
     return pieceElement;
   }
@@ -131,9 +134,9 @@ export class ChessBoard {
         this.game.getStatus() === GameStatus.DRAW) {
       return;
     }
-    
+
     const piece = this.game.getBoard().getPieceAt(position);
-    
+
     // If no cell is selected and the clicked cell has a piece of the current player, select it
     if (!this.selectedCell && piece && piece.color === this.game.getCurrentPlayer()) {
       this.selectedCell = position;
@@ -141,7 +144,7 @@ export class ChessBoard {
       this.render();
       return;
     }
-    
+
     // If a cell is already selected
     if (this.selectedCell) {
       // If the clicked cell is a possible move, make the move
@@ -152,7 +155,7 @@ export class ChessBoard {
         this.render();
         return;
       }
-      
+
       // If the clicked cell has a piece of the current player, select it
       if (piece && piece.color === this.game.getCurrentPlayer()) {
         this.selectedCell = position;
@@ -160,7 +163,7 @@ export class ChessBoard {
         this.render();
         return;
       }
-      
+
       // Otherwise, deselect the current cell
       this.selectedCell = null;
       this.possibleMoves = [];
