@@ -33,6 +33,7 @@ export class StockfishService {
             const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
             this.worker = new Worker(workerUrl, { type: 'classic' });
           } catch (e) {
+            // @ts-ignore
             if (e.toString().includes('SharedArrayBuffer')) {
               throw e; // Re-throw to fall back to non-SharedArrayBuffer version
             }
@@ -58,7 +59,7 @@ export class StockfishService {
       }
 
       // Set up message handler
-      this.worker.onmessage = (e) => this.handleStockfishMessage(e.data);
+      this.worker.onmessage = (e: MessageEvent<string>) => this.handleStockfishMessage(e.data);
 
       // Initialize Stockfish
       this.sendCommand('uci');
