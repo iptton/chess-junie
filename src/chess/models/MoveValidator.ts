@@ -97,10 +97,21 @@ export class MoveValidator {
       const enPassantPos = { x: to.x, y: from.y };
       const enPassantPiece = this.board.getPieceAt(enPassantPos);
 
+      // Check if the piece is a pawn of the opposite color
       if (enPassantPiece && 
           enPassantPiece.type === PieceType.PAWN && 
           enPassantPiece.color !== pawn.color) {
-        return true;
+
+        // Check if the pawn is in the correct position for en passant
+        // (4th rank for white pawns, 5th rank for black pawns)
+        const correctRank = enPassantPiece.color === PieceColor.WHITE ? 3 : 4;
+
+        // Check if the pawn hasn't moved more than once (i.e., it just made a double move)
+        // hasMoved is set to true after the first move, so it should be false for a pawn
+        // that just moved from its starting position
+        if (enPassantPiece.position.y === correctRank && enPassantPiece.hasMoved === false) {
+          return true;
+        }
       }
     }
 

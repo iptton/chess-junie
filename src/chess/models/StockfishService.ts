@@ -36,16 +36,17 @@ export class StockfishService {
         if (hasSharedArrayBuffer) {
           // If SharedArrayBuffer is available, try to use the full-featured version
           try {
-            // First try: Use the stockfish.js from the correct path with classic type
-            const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
-            this.worker = new Worker(workerUrl, { type: 'classic' });
+            // Import Stockfish as an ES module
+            // This ensures Vite processes it correctly and includes the WASM file
+            const stockfishUrl = new URL('stockfish', import.meta.url).href;
+            this.worker = new Worker(stockfishUrl, { type: 'module' });
           } catch (e) {
             // @ts-ignore
             if (e.toString().includes('SharedArrayBuffer')) {
               throw e; // Re-throw to fall back to non-SharedArrayBuffer version
             }
-            console.warn('Failed to initialize Stockfish with direct path, trying alternative:', e);
-            // Second try: Use the original approach with classic type
+            console.warn('Failed to initialize Stockfish with ES module, trying alternative:', e);
+            // Second try: Use the classic type
             this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
           }
         } else {
