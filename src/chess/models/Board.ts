@@ -1,6 +1,7 @@
 import { Piece, PieceType, PieceColor, Position, Move } from './types';
+import { BoardInterface } from './BoardInterface';
 
-export class Board {
+export class Board implements BoardInterface {
   private pieces: Piece[] = [];
 
   constructor() {
@@ -22,7 +23,7 @@ export class Board {
     if (!piece) return null;
 
     const capturedPiece = this.getPieceAt(to);
-    
+
     // Create the move object
     const move: Move = {
       from,
@@ -42,14 +43,14 @@ export class Board {
           this.removePiece(enPassantPiecePos);
         }
       }
-      
+
       // Promotion
       if ((piece.color === PieceColor.WHITE && to.y === 7) || 
           (piece.color === PieceColor.BLACK && to.y === 0)) {
         move.promotion = PieceType.QUEEN; // Default promotion to queen
       }
     }
-    
+
     // Castling
     if (piece.type === PieceType.KING && Math.abs(from.x - to.x) === 2) {
       move.isCastling = true;
@@ -57,7 +58,7 @@ export class Board {
       const rookToX = to.x > from.x ? from.x + 1 : from.x - 1;
       const rookPos = { x: rookFromX, y: from.y };
       const rook = this.getPieceAt(rookPos);
-      
+
       if (rook && rook.type === PieceType.ROOK) {
         this.updatePiecePosition(rookPos, { x: rookToX, y: from.y });
       }
@@ -70,29 +71,33 @@ export class Board {
 
     // Update piece position
     this.updatePiecePosition(from, to);
-    
+
     // Mark piece as moved
     piece.hasMoved = true;
 
     return move;
   }
 
-  private updatePiecePosition(from: Position, to: Position): void {
+  public updatePiecePosition(from: Position, to: Position): void {
     const piece = this.getPieceAt(from);
     if (piece) {
       piece.position = { ...to };
     }
   }
 
-  private removePiece(position: Position): void {
+  public removePiece(position: Position): void {
     this.pieces = this.pieces.filter(
       piece => !(piece.position.x === position.x && piece.position.y === position.y)
     );
   }
 
+  public setPieces(pieces: Piece[]): void {
+    this.pieces = [...pieces];
+  }
+
   public resetBoard(): void {
     this.pieces = [];
-    
+
     // Add pawns
     for (let x = 0; x < 8; x++) {
       this.pieces.push({
@@ -101,7 +106,7 @@ export class Board {
         position: { x, y: 1 },
         hasMoved: false
       });
-      
+
       this.pieces.push({
         type: PieceType.PAWN,
         color: PieceColor.BLACK,
@@ -109,7 +114,7 @@ export class Board {
         hasMoved: false
       });
     }
-    
+
     // Add rooks
     this.pieces.push({
       type: PieceType.ROOK,
@@ -135,7 +140,7 @@ export class Board {
       position: { x: 7, y: 7 },
       hasMoved: false
     });
-    
+
     // Add knights
     this.pieces.push({
       type: PieceType.KNIGHT,
@@ -157,7 +162,7 @@ export class Board {
       color: PieceColor.BLACK,
       position: { x: 6, y: 7 }
     });
-    
+
     // Add bishops
     this.pieces.push({
       type: PieceType.BISHOP,
@@ -179,7 +184,7 @@ export class Board {
       color: PieceColor.BLACK,
       position: { x: 5, y: 7 }
     });
-    
+
     // Add queens
     this.pieces.push({
       type: PieceType.QUEEN,
@@ -191,7 +196,7 @@ export class Board {
       color: PieceColor.BLACK,
       position: { x: 3, y: 7 }
     });
-    
+
     // Add kings
     this.pieces.push({
       type: PieceType.KING,

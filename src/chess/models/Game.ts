@@ -33,7 +33,14 @@ export class Game {
 
       // If AI plays as white, make the first move
       if (this.aiColor === PieceColor.WHITE) {
-        this.makeAIMove();
+        // Call makeAIMove and handle the promise
+        this.makeAIMove().then(result => {
+          if (!result) {
+            console.error('AI move failed');
+          }
+        }).catch(error => {
+          console.error('AI move error:', error);
+        });
       }
     }
   }
@@ -54,7 +61,7 @@ export class Game {
     return [...this.moveHistory];
   }
 
-  public makeMove(from: Position, to: Position): boolean {
+  public makeMove(from: Position, to: Position, callback?: () => void): boolean {
     // Check if the game is still active
     if (this.status !== GameStatus.ACTIVE && this.status !== GameStatus.CHECK) {
       return false;
@@ -84,13 +91,20 @@ export class Game {
     if (this.gameMode === GameMode.HUMAN_VS_AI && 
         this.currentPlayer === this.aiColor && 
         (this.status === GameStatus.ACTIVE || this.status === GameStatus.CHECK)) {
-      this.makeAIMove();
+      // Call makeAIMove and handle the promise
+      this.makeAIMove(callback).then(result => {
+        if (!result) {
+          console.error('AI move failed');
+        }
+      }).catch(error => {
+        console.error('AI move error:', error);
+      });
     }
 
     return true;
   }
 
-  public async makeAIMove(): Promise<boolean> {
+  public async makeAIMove(callback?: () => void): Promise<boolean> {
     if (!this.stockfishService || this.aiThinking || 
         this.currentPlayer !== this.aiColor || 
         (this.status !== GameStatus.ACTIVE && this.status !== GameStatus.CHECK)) {
@@ -105,6 +119,11 @@ export class Game {
 
       // Make the move
       const result = this.makeMove(move.from, move.to);
+
+      // Call the callback if provided
+      if (callback) {
+        callback();
+      }
 
       return result;
     } catch (error) {
@@ -123,7 +142,7 @@ export class Game {
     return this.aiColor;
   }
 
-  public setGameMode(mode: GameMode, aiColor: PieceColor = PieceColor.BLACK): void {
+  public setGameMode(mode: GameMode, aiColor: PieceColor = PieceColor.BLACK, callback?: () => void): void {
     // If changing to AI mode
     if (mode === GameMode.HUMAN_VS_AI && this.gameMode !== GameMode.HUMAN_VS_AI) {
       this.stockfishService = new StockfishService();
@@ -143,7 +162,14 @@ export class Game {
     if (mode === GameMode.HUMAN_VS_AI && 
         this.currentPlayer === this.aiColor && 
         (this.status === GameStatus.ACTIVE || this.status === GameStatus.CHECK)) {
-      this.makeAIMove();
+      // Call makeAIMove and handle the promise
+      this.makeAIMove(callback).then(result => {
+        if (!result) {
+          console.error('AI move failed');
+        }
+      }).catch(error => {
+        console.error('AI move error:', error);
+      });
     }
   }
 
@@ -187,7 +213,7 @@ export class Game {
     }
   }
 
-  public resetGame(): void {
+  public resetGame(callback?: () => void): void {
     // Store current game mode and AI color
     const currentGameMode = this.gameMode;
     const currentAIColor = this.aiColor;
@@ -206,7 +232,14 @@ export class Game {
     if (this.gameMode === GameMode.HUMAN_VS_AI && 
         this.aiColor === PieceColor.WHITE && 
         this.status === GameStatus.ACTIVE) {
-      this.makeAIMove();
+      // Call makeAIMove and handle the promise
+      this.makeAIMove(callback).then(result => {
+        if (!result) {
+          console.error('AI move failed');
+        }
+      }).catch(error => {
+        console.error('AI move error:', error);
+      });
     }
   }
 

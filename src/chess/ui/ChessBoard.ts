@@ -108,7 +108,9 @@ export class ChessBoard {
     }
 
     // Update game mode
-    this.game.setGameMode(gameMode, aiColor);
+    this.game.setGameMode(gameMode, aiColor, () => {
+      this.render();
+    });
     this.render();
   }
 
@@ -118,7 +120,9 @@ export class ChessBoard {
 
     // Only update if in AI mode
     if (gameMode === GameMode.HUMAN_VS_AI) {
-      this.game.setGameMode(gameMode, aiColor);
+      this.game.setGameMode(gameMode, aiColor, () => {
+        this.render();
+      });
       this.render();
     }
   }
@@ -282,7 +286,9 @@ export class ChessBoard {
     if (this.selectedCell) {
       // If the clicked cell is a possible move, make the move
       if (this.possibleMoves.some(pos => pos.x === position.x && pos.y === position.y)) {
-        this.game.makeMove(this.selectedCell, position);
+        this.game.makeMove(this.selectedCell, position, () => {
+          this.render();
+        });
         this.selectedCell = null;
         this.possibleMoves = [];
         this.render();
@@ -312,11 +318,15 @@ export class ChessBoard {
     const gameMode = this.game.getGameMode();
     const aiColor = this.game.getAIColor();
 
-    this.game.resetGame();
+    this.game.resetGame(() => {
+      this.render();
+    });
 
     // Restore game mode and AI color
     if (gameMode === GameMode.HUMAN_VS_AI) {
-      this.game.setGameMode(gameMode, aiColor);
+      this.game.setGameMode(gameMode, aiColor, () => {
+        this.render();
+      });
     }
 
     this.selectedCell = null;
