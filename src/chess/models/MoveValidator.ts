@@ -32,7 +32,15 @@ export class MoveValidator {
       return false;
     }
 
-    // Check if the move would put or leave the king in check
+    // Check if the king is currently in check
+    const isCurrentlyInCheck = this.isInCheck(piece.color);
+
+    // If the king is in check, check if this move would resolve the check
+    if (isCurrentlyInCheck) {
+      return this.wouldMoveResolveCheck(from, to, piece.color);
+    }
+
+    // If the king is not in check, check if the move would put the king in check
     if (this.wouldBeInCheck(from, to, piece.color)) {
       return false;
     }
@@ -445,6 +453,60 @@ export class MoveValidator {
     }
 
     return true;
+  }
+
+  private wouldMoveResolveCheck(from: Position, to: Position, kingColor: PieceColor): boolean {
+    // Get all pieces from the current board
+    const pieces = this.board.getPieces();
+
+    // Create a deep copy of all pieces
+    const piecesCopy = pieces.map(p => ({
+      ...p,
+      position: { ...p.position }
+    }));
+
+    // Find the piece that is moving
+    const movingPieceIndex = piecesCopy.findIndex(
+      p => p.position.x === from.x && p.position.y === from.y
+    );
+
+    if (movingPieceIndex === -1) {
+      return false; // No piece at the from position
+    }
+
+    // Find if there's a piece at the destination
+    const capturedPieceIndex = piecesCopy.findIndex(
+      p => p.position.x === to.x && p.position.y === to.y
+    );
+
+    // Remove the captured piece if there is one
+    if (capturedPieceIndex !== -1) {
+      piecesCopy.splice(capturedPieceIndex, 1);
+    }
+
+    // Update the position of the moving piece
+    piecesCopy[movingPieceIndex].position = { ...to };
+
+    // Check if the king is in check after the move
+    const kingPiece = piecesCopy.find(p => p.type === PieceType.KING && p.color === kingColor);
+
+    if (!kingPiece) {
+      return false; // This shouldn't happen in a valid game
+    }
+
+    // Check if any opponent piece can attack the king
+    const opponentColor = kingColor === PieceColor.WHITE ? PieceColor.BLACK : PieceColor.WHITE;
+
+    for (const piece of piecesCopy) {
+      if (piece.color === opponentColor) {
+        // Check if this piece can attack the king's position
+        if (this.canPieceAttackSquareWithPieces(piece, kingPiece.position, piecesCopy)) {
+          return false; // King is still in check after the move
+        }
+      }
+    }
+
+    return true; // King is not in check after the move
   }
 
   public isCheckmate(kingColor: PieceColor): boolean {
