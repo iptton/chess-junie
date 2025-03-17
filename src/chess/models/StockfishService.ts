@@ -8,6 +8,7 @@ export class StockfishService {
   private moveReject: ((error: Error) => void) | null = null;
   private readyPromise: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
+  private readyReject: ((error: Error) => void) | null = null;
 
   constructor() {
     this.initializeStockfish();
@@ -15,8 +16,9 @@ export class StockfishService {
 
   private initializeStockfish(): void {
     // Create a new ready promise
-    this.readyPromise = new Promise<void>((resolve) => {
+    this.readyPromise = new Promise<void>((resolve, reject) => {
       this.readyResolve = resolve;
+      this.readyReject = reject;
     });
 
     try {
@@ -32,56 +34,57 @@ export class StockfishService {
       }
 
       // Try different approaches to initialize Stockfish
-      try {
-        if (hasSharedArrayBuffer) {
-          // If SharedArrayBuffer is available, try to use the full-featured version
-          try {
-            // Import Stockfish as an ES module
-            // This ensures Vite processes it correctly and includes the WASM file
-            const stockfishUrl = new URL('stockfish', import.meta.url).href;
-            this.worker = new Worker(stockfishUrl, { type: 'module' });
-          } catch (e) {
-            // @ts-ignore
-            if (e.toString().includes('SharedArrayBuffer')) {
-              throw e; // Re-throw to fall back to non-SharedArrayBuffer version
-            }
-            console.warn('Failed to initialize Stockfish with ES module, trying alternative:', e);
-            // Second try: Use the classic type
-            this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
-          }
-        } else {
-          // If SharedArrayBuffer is not available, use WASM version that doesn't require it
-          console.warn('Using WASM version of Stockfish that does not require SharedArrayBuffer');
-          this.worker = new Worker(new URL('stockfish', import.meta.url), { type: 'module' });
-        }
-      } catch (e) {
-        console.warn('Failed to initialize Stockfish with preferred method, trying fallback:', e);
+      // Use dynamic import to load the Stockfish module
+      // This ensures Vite correctly processes the import and includes the necessary files
+      import('stockfish').then(stockfish => {
         try {
-          // Final fallback: Try the module version which should work in most environments
-          this.worker = new Worker(new URL('stockfish', import.meta.url), { type: 'module' });
-        } catch (e2) {
-          console.warn('Failed to initialize Stockfish with module type, trying last resort:', e2);
-          // Last resort: Use the original approach with classic type
-          this.worker = new Worker(new URL('stockfish', import.meta.url) + '?worker_file&type=classic', { type: 'classic' });
+          // Create a worker from the stockfish module
+          if (typeof stockfish.default === 'function') {
+            // If stockfish exports a function, use it to create a worker
+            this.worker = stockfish.default();
+          } else {
+            // Otherwise, create a worker using the standard approach
+            const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
+            this.worker = new Worker(workerUrl, { type: 'classic' });
+          }
+
+          // Set up message handler
+          if (this.worker) {
+            this.worker.onmessage = (e: MessageEvent<string>) => this.handleStockfishMessage(e.data);
+
+            // Initialize Stockfish
+            this.sendCommand('uci');
+            this.sendCommand('isready');
+          } else {
+            throw new Error('Failed to create Stockfish worker');
+          }
+        } catch (error) {
+          console.error('Failed to create Stockfish worker:', error);
+          this.handleInitializationError(error instanceof Error ? error : new Error(String(error)));
         }
-      }
+      }).catch(error => {
+        console.error('Failed to import Stockfish module:', error);
 
-      // Set up message handler
-      this.worker.onmessage = (e: MessageEvent<string>) => this.handleStockfishMessage(e.data);
+        // Try with a CDN as a last resort
+        try {
+          this.worker = new Worker('https://cdn.jsdelivr.net/npm/stockfish@15.0.0/stockfish.js', { type: 'classic' });
 
-      // Initialize Stockfish
-      this.sendCommand('uci');
-      this.sendCommand('isready');
+          // Set up message handler
+          this.worker.onmessage = (e: MessageEvent<string>) => this.handleStockfishMessage(e.data);
+
+          // Initialize Stockfish
+          this.sendCommand('uci');
+          this.sendCommand('isready');
+        } catch (e2) {
+          console.error('Failed to initialize Stockfish with CDN:', e2);
+          this.handleInitializationError(e2 instanceof Error ? e2 : new Error(String(e2)));
+        }
+      });
+
+      // Initialization is now handled inside the Promise chain
     } catch (error) {
       console.error('Failed to initialize Stockfish:', error);
-      // Set isReady to false to ensure getBestMove throws an appropriate error
-      this.isReady = false;
-
-      // Reject the ready promise if it exists
-      if (this.readyResolve) {
-        this.readyResolve = null;
-        this.readyPromise = Promise.reject(new Error('Failed to initialize Stockfish'));
-      }
+      this.handleInitializationError(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -304,8 +307,24 @@ export class StockfishService {
     }
     this.isReady = false;
     this.readyResolve = null;
+    this.readyReject = null;
     this.readyPromise = null;
     this.moveResolve = null;
     this.moveReject = null;
+  }
+
+  private handleInitializationError(error: Error): void {
+    // Set isReady to false to ensure getBestMove throws an appropriate error
+    this.isReady = false;
+
+    // Reject the ready promise if it exists
+    if (this.readyReject) {
+      this.readyReject(new Error(`Failed to initialize Stockfish: ${error.message}`));
+      this.readyResolve = null;
+      this.readyReject = null;
+    }
+
+    // Set readyPromise to a rejected promise for future calls
+    this.readyPromise = Promise.reject(new Error(`Failed to initialize Stockfish: ${error.message}`));
   }
 }
