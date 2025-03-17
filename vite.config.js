@@ -21,12 +21,21 @@ export default defineConfig({
             return '[name][extname]';
           }
           return 'assets/[name]-[hash][extname]';
+        },
+        output: {
+          assetFileNames: (assetInfo) => {
+            // Keep WASM files at the root level instead of in assets directory
+            if (assetInfo.name && assetInfo.name.endsWith('.wasm')) {
+              return '[name][extname]';
+            }
+            return '[name]-[hash][extname]';
+          }
         }
       }
     },
   },
-  // optimizeDeps: {
-  //   exclude: ['stockfish'],
-  // },
+  optimizeDeps: {
+    exclude: ['stockfish'],
+  },
   assetsInclude: ['**/*.wasm'],
 });
