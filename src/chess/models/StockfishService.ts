@@ -1,5 +1,7 @@
 import { Piece, PieceType, PieceColor, Position, Move } from './types';
 import { Board } from './Board';
+// Import the WASM file to ensure it's included in the build
+import 'stockfish/src/stockfish.wasm';
 
 export class StockfishService {
   private worker: Worker | null = null;
@@ -44,8 +46,8 @@ export class StockfishService {
             this.worker = stockfish.default();
           } else {
             // Otherwise, create a worker using the standard approach
-            const workerUrl = new URL('stockfish/src/stockfish.js', import.meta.url);
-            this.worker = new Worker(workerUrl, { type: 'classic' });
+            const workerUrl = new URL('stockfish/stockfish.js', import.meta.url);
+            this.worker = new Worker(workerUrl, { type: 'module' });
           }
 
           // Set up message handler
