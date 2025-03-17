@@ -14,10 +14,19 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
       },
+      output: {
+        assetFileNames: (assetInfo) => {
+          // Keep WASM files at the root level instead of in assets directory
+          if (assetInfo.name && assetInfo.name.endsWith('.wasm')) {
+            return '[name][extname]';
+          }
+          return 'assets/[name]-[hash][extname]';
+        }
+      }
     },
   },
-  optimizeDeps: {
-    exclude: ['stockfish'],
-  },
+  // optimizeDeps: {
+  //   exclude: ['stockfish'],
+  // },
   assetsInclude: ['**/*.wasm'],
 });
